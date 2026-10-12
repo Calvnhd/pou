@@ -22,7 +22,7 @@ test('text help displays command briefings without executing custom verbs', (t) 
     assert.ifError(result.error);
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.doesNotMatch(result.stdout, /undefined/);
-    assert.match(result.stdout, commandArguments.includes('init') ? /sideEffects: Writes only missing project-local files/ : /Briefing unavailable/);
+    assert.match(result.stdout, commandArguments.includes('init') ? /sideEffects:\s+Writes only missing project-local files/ : /Briefing unavailable/);
   }
 });
 
