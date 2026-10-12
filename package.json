@@ -1,0 +1,23 @@
+{
+  "name": "pou",
+  "version": "0.1.0",
+  "description": "A tiny, reusable, language-agnostic project operations engine (core + profiles).",
+  "type": "module",
+  "bin": {
+    "pou": "./bin/pou.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "docs"
+  ],
+  "scripts": {
+    "smoke": "node bin/pou.mjs help",
+    "test": "node --test test/cli.test.mjs test/config.test.mjs test/exec.test.mjs test/http.test.mjs test/dotnet.test.mjs",
+    "test:integration": "node --test test/dotnet.integration.test.mjs"
+  },
+  "license": "Unlicense"
+}
