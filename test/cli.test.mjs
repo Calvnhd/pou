@@ -44,7 +44,15 @@ test('init is repeatable and doctor detects missing configuration', (t) => {
   const files = ['pou.config.mjs', join('.pou', 'friction.md'), 'AGENTS.md'];
   assert.deepEqual(invoke(currentDirectory, ['init']).envelope.data.created, files);
   assert.equal(invoke(currentDirectory, ['doctor']).status, 0);
-  assert.match(readFileSync(join(currentDirectory, 'AGENTS.md'), 'utf8'), /Project pou guidance/);
+  const guidance = readFileSync(join(currentDirectory, 'AGENTS.md'), 'utf8');
+  assert.match(guidance, /Project pou guidance/);
+  assert.match(guidance, /project operations CLI/);
+  assert.match(guidance, /pou instructions <command>/);
+  assert.match(guidance, /verbs.*pou\.config\.mjs/);
+  assert.match(guidance, /briefings/);
+  for (const { name } of invoke(currentDirectory, ['help']).envelope.data.commands) {
+    assert.ok(guidance.includes(`* \`pou ${name}`), `Generated guidance must list ${name}`);
+  }
   const before = files.map((name) => readFileSync(join(currentDirectory, name)));
   assert.deepEqual(invoke(currentDirectory, ['init']).envelope.data.created, []);
   files.forEach((name, index) => assert.deepEqual(readFileSync(join(currentDirectory, name)), before[index]));
