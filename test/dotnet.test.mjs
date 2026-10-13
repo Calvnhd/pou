@@ -65,9 +65,10 @@ test('fresh invocation reports succeed and are cleaned; prior reports cannot sat
   assert.equal(absent.status, 'unconfigured');
 });
 
-test('failed, skipped, all-skipped, malformed, and multiple reports cannot pass', async (t) => {
+test('failed, missing, skipped, all-skipped, malformed, and multiple reports cannot pass', async (t) => {
   const { currentDirectory, params } = setup(t);
   for (const [reports, expected, ok] of [
+    [[], 'error', false],
     [[createTestResultsReport({ passed: 0, failed: 1 })], 'error', false],
     [[createTestResultsReport({ skipped: 1 })], 'unconfigured', true],
     [[createTestResultsReport({ passed: 0, skipped: 1 })], 'unconfigured', true],
@@ -81,6 +82,12 @@ test('failed, skipped, all-skipped, malformed, and multiple reports cannot pass'
       return { ok, code: ok ? 0 : 1 };
     }));
     assert.equal(result.status, expected);
+    if (expected === 'error') {
+      assert.equal(result.error.code, 'DOTNET_FAILED');
+      assert.ok(result.next_action);
+      assert.equal(result.data.steps[0].code, 1);
+      if (reports.length) assert.equal(result.data.tests.failed, 1);
+    }
   }
 });
 

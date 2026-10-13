@@ -34,4 +34,8 @@ test('real SDK proves passing/failing/zero-test and compile-failure fixtures', {
   assert.equal(empty.status, 2, empty.stdout);
   writeFileSync(source, 'this is deliberately not valid C#');
   assert.equal(invoke(currentDirectory, ['build'], { timeout: 120_000 }).status, 1);
+  const compileFailure = invoke(currentDirectory, ['test'], { timeout: 120_000 });
+  assert.equal(compileFailure.status, 1, compileFailure.stdout);
+  assert.equal(compileFailure.envelope.error.code, 'DOTNET_FAILED');
+  assert.match(compileFailure.envelope.data.steps[0].stdout, /error CS/);
 });

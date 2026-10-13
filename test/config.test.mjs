@@ -31,6 +31,6 @@ test('required and optional probes have distinct status and recovery', (t) => {
 
 test('instructions expose side effects and unknown briefings fail', (t) => {
   const currentDirectory = workspace(t);
-  assert.match(invoke(currentDirectory, ['instructions', 'init']).envelope.data.briefing.sideEffects, /Writes/);
+  assert.match(invoke(currentDirectory, ['instructions', 'init']).envelope.data.briefing.sideEffects, /Creates missing files and appends a pou section/);
   assert.equal(invoke(currentDirectory, ['instructions', 'unknown']).status, 1);
 });

@@ -22,7 +22,7 @@ test('text help displays command briefings without executing custom verbs', (t) 
     assert.ifError(result.error);
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.doesNotMatch(result.stdout, /undefined/);
-    assert.match(result.stdout, commandArguments.includes('init') ? /sideEffects:\s+Writes only missing project-local files/ : /Briefing unavailable/);
+    assert.match(result.stdout, commandArguments.includes('init') ? /sideEffects:\s+Creates missing files and appends a pou section/ : /Briefing unavailable/);
   }
 });
 
@@ -86,6 +86,31 @@ test('profiles lists available profiles and the selected one', (t) => {
   assert.equal(invoke(currentDirectory, ['profiles', 'extra']).status, 1);
 });
 
+test('profiles remains discoverable with broken configuration without claiming a selection', (t) => {
+  for (const source of ['export default {profile: "dotnett"};', 'export default {']) {
+    const currentDirectory = workspace(t);
+    config(currentDirectory, source);
+    const json = invoke(currentDirectory, ['profiles']);
+    assert.equal(json.status, 0);
+    assert.equal(json.envelope.status, 'degraded');
+    assert.equal(json.envelope.error.code, 'CONFIG_INVALID');
+    assert.ok(json.envelope.error.message);
+    assert.ok(json.envelope.next_action);
+    assert.equal(json.envelope.data.selected, null);
+    assert.deepEqual(json.envelope.data.profiles.map((profile) => profile.name), ['base', 'dotnet']);
+    const text = spawnSync(process.execPath, [cli, 'profiles'], { cwd: currentDirectory, encoding: 'utf8', timeout: 30_000 });
+    assert.ifError(text.error);
+    assert.equal(text.status, 0, text.stdout);
+    assert.match(text.stdout, /profiles: degraded/);
+    assert.match(text.stdout, /CONFIG_INVALID/);
+    assert.match(text.stdout, /^     base\s+/m);
+    assert.match(text.stdout, /^     dotnet\s+/m);
+    assert.doesNotMatch(text.stdout, /^  \*/m);
+    assert.equal(invoke(currentDirectory, ['doctor']).status, 2);
+    assert.equal(invoke(currentDirectory, ['profiles', 'extra']).status, 1);
+  }
+});
+
 test('init with a profile writes that starter and rejects unknown profiles', (t) => {
   const currentDirectory = workspace(t);
   const unknown = invoke(currentDirectory, ['init', 'nope']);
@@ -139,6 +164,27 @@ test('managed noisy shell output does not contaminate JSON and failures short-ci
   const failed = invoke(currentDirectory, ['checks']);
   assert.equal(failed.status, 1);
   assert.equal(failed.envelope.data.steps.length, 1);
+});
+
+test('successful shell steps display stdout and stderr without changing JSON', (t) => {
+  const currentDirectory = workspace(t);
+  const noisy = `"${process.execPath}" -e "console.log('measured output');console.error('tool warning')"`;
+  const silent = `"${process.execPath}" -e "process.exit(0)"`;
+  config(currentDirectory, `export default {verbs: {report: ${JSON.stringify([noisy, silent])}}};`);
+  const text = spawnSync(process.execPath, [cli, 'report'], { cwd: currentDirectory, encoding: 'utf8', timeout: 30_000 });
+  assert.ifError(text.error);
+  assert.equal(text.status, 0, text.stdout);
+  assert.match(text.stdout, /report: ok/);
+  assert.match(text.stdout, /    measured output/);
+  assert.match(text.stdout, /    tool warning/);
+  assert.equal((text.stdout.match(/^  output \(/gm) ?? []).length, 1);
+  const json = invoke(currentDirectory, ['report']);
+  assert.equal(json.status, 0);
+  assert.equal(json.stdout.trim().split(/\r?\n/).length, 1);
+  assert.equal(json.envelope.data.steps.length, 2);
+  assert.equal(json.envelope.data.steps[0].stdout, 'measured output\n');
+  assert.equal(json.envelope.data.steps[0].stderr, 'tool warning\n');
+  assert.equal(json.envelope.data.steps[1].stdout, '');
 });
 
 test('function contracts, thrown errors, and unknown flags fail explicitly', (t) => {

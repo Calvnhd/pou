@@ -97,7 +97,9 @@ Replace the paths and framework with your own. Paths are relative to your projec
 * `pou test` runs `dotnet test` on `testProject` using `testFramework`, then checks the results.
 * `pou doctor` also checks the .NET SDK and that `buildTarget` resolves.
 
-To customize, change `params`, add your own commands or `doctor` checks, or replace a profile command by defining a verb with the same name. A replacement needs its own `briefings` entry, or its briefing is reported unavailable.
+Tests require a VSTest/TRX-compatible runner. Missing or multiple fresh TRX reports, zero completed tests, or any skipped tests result in `unconfigured`. A failed process with no report results in `error`.
+
+To customize, change `params`, add your own commands or `doctor` checks, or replace a profile command by defining a verb with the same name. A replacement needs its own `briefings` entry, otherwise its briefing is reported unavailable.
 
 
 ## Write a command in JavaScript

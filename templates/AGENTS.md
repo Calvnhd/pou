@@ -10,7 +10,7 @@ description: Guidance for agents working in this repository
 ## Base commands
 
 * `pou version`: Report the installed pou version and Node runtime.
-* `pou init [profile]`: Create missing `pou.config.mjs` (for the named profile, default `base`), `AGENTS.md`, and `.pou/friction.md` in the current directory, while preserving existing files.
+* `pou init [profile]`: Create `pou.config.mjs` (for the named profile, default `base`), `AGENTS.md`, and `.pou/friction.md` in the current directory. Preserve existing config and logs; append a pou section to existing `AGENTS.md` if absent.
 * `pou profiles`: List the available profiles and which one this directory selects.
 * `pou help [command]`: List available commands or describe one without executing it.
 * `pou instructions [command]`: Read the general workflow, prerequisites, effects, limitations etc. for the specified command.
