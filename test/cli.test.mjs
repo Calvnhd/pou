@@ -45,7 +45,7 @@ test('init is repeatable and doctor detects missing configuration', (t) => {
   assert.deepEqual(invoke(currentDirectory, ['init']).envelope.data.created, files);
   assert.equal(invoke(currentDirectory, ['doctor']).status, 0);
   const guidance = readFileSync(join(currentDirectory, 'AGENTS.md'), 'utf8');
-  assert.match(guidance, /Project pou guidance/);
+  assert.match(guidance, /^# pou$/m);
   assert.match(guidance, /project operations CLI/);
   assert.match(guidance, /pou instructions <command>/);
   assert.match(guidance, /verbs.*pou\.config\.mjs/);
@@ -58,7 +58,7 @@ test('init is repeatable and doctor detects missing configuration', (t) => {
   files.forEach((name, index) => assert.deepEqual(readFileSync(join(currentDirectory, name)), before[index]));
 });
 
-test('init preserves existing configuration and guidance', (t) => {
+test('init appends a pou section to existing guidance once and preserves configuration', (t) => {
   const currentDirectory = workspace(t);
   const content = 'export default {profile:"base"};';
   config(currentDirectory, content);
@@ -66,8 +66,47 @@ test('init preserves existing configuration and guidance', (t) => {
   assert.equal(invoke(currentDirectory, ['help']).envelope.data.hasConfiguration, true);
   assert.equal(invoke(currentDirectory, ['init']).status, 0);
   assert.equal(readFileSync(join(currentDirectory, 'pou.config.mjs'), 'utf8'), content);
-  assert.equal(readFileSync(join(currentDirectory, 'AGENTS.md'), 'utf8'), 'Team guidance');
+  const guidance = readFileSync(join(currentDirectory, 'AGENTS.md'), 'utf8');
+  assert.ok(guidance.startsWith('Team guidance\n'));
+  assert.match(guidance, /^# pou$/m);
+  assert.doesNotMatch(guidance, /^---$/m);
+  assert.equal(invoke(currentDirectory, ['init']).envelope.data.updated.length, 0);
+  assert.equal(readFileSync(join(currentDirectory, 'AGENTS.md'), 'utf8'), guidance);
   assert.equal(invoke(currentDirectory, ['doctor']).status, 0);
+});
+
+test('profiles lists available profiles and the selected one', (t) => {
+  const currentDirectory = workspace(t);
+  const unconfigured = invoke(currentDirectory, ['profiles']).envelope.data;
+  assert.deepEqual(unconfigured.profiles.map((profile) => profile.name), ['base', 'dotnet']);
+  assert.ok(unconfigured.profiles.every((profile) => profile.description));
+  assert.equal(unconfigured.selected, 'base');
+  config(currentDirectory, 'export default {profile: "dotnet"};');
+  assert.equal(invoke(currentDirectory, ['profiles']).envelope.data.selected, 'dotnet');
+  assert.equal(invoke(currentDirectory, ['profiles', 'extra']).status, 1);
+});
+
+test('init with a profile writes that starter and rejects unknown profiles', (t) => {
+  const currentDirectory = workspace(t);
+  const unknown = invoke(currentDirectory, ['init', 'nope']);
+  assert.equal(unknown.status, 1);
+  assert.equal(unknown.envelope.error.code, 'PROFILE_UNKNOWN');
+  assert.match(unknown.envelope.next_action, /base, dotnet/);
+  assert.equal(existsSync(join(currentDirectory, 'pou.config.mjs')), false);
+  assert.equal(invoke(currentDirectory, ['init', 'dotnet']).status, 0);
+  assert.match(readFileSync(join(currentDirectory, 'pou.config.mjs'), 'utf8'), /profile: 'dotnet'/);
+  assert.equal(invoke(currentDirectory, ['profiles']).envelope.data.selected, 'dotnet');
+  assert.notEqual(invoke(currentDirectory, ['doctor']).status, 0);
+});
+
+test('init with a profile does not change an existing configuration', (t) => {
+  const currentDirectory = workspace(t);
+  const content = 'export default {profile:"base"};';
+  config(currentDirectory, content);
+  const result = invoke(currentDirectory, ['init', 'dotnet']);
+  assert.equal(result.status, 0);
+  assert.match(result.envelope.data.note, /was not applied/);
+  assert.equal(readFileSync(join(currentDirectory, 'pou.config.mjs'), 'utf8'), content);
 });
 
 test('project configuration follows the current directory independently', (t) => {

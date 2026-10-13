@@ -11,16 +11,15 @@ The base runtime requires only Node.js 18 or newer and uses no third-party packa
 
 | Command        | Capability                                               |
 |----------------|----------------------------------------------------------|
-| `help`         | Discover actual commands; `help <verb>` does not run them |
+| `help`         | Discover commands without running them |
 | `instructions` | Read core or per-command operating contracts              |
 | `version`      | Identify the installed engine/runtime                     |
-| `init`         | Create missing project-local configuration and guidance   |
+| `init`         | Create missing project-local configuration and guidance; `init <profile>` picks the starter |
+| `profiles`     | List available profiles and the one this directory selects |
 | `doctor`       | Measure required and optional readiness probes            |
 | `observe`      | Persist one friction observation in the configured repo   |
 
-Base is the generic default, with no build/test/boot commands. One optional `dotnet` profile supplies explicit build/test/checks operations. 
-
-Read [configuration and proof contracts](./docs/configuration.md) before adding commands.
+Base is the generic default, with no build/test/boot commands. One optional `dotnet` profile supplies explicit build/test operations. Commands can be extended, added, or overridden. 
 
 ## Install
 
@@ -28,7 +27,7 @@ Install directly from a local clone:
 
 ```text
 npm install -g "C:/path/to/pou"
-pou version --json
+pou version
 ```
 
 With npm's default local-folder installation, the global command links to that folder. Source edits take effect immediately, and the clone must stay in place.
@@ -45,19 +44,18 @@ A global install lives under npm's global prefix, not the consuming repo. Find i
 
 ## Adopt a project
 
-Change to the intended project root using your shell, then:
+Navigate to the intended project root, then:
 
 ```text
-pou init
+pou profiles
+pou init [optional-profile]
 pou help
 pou instructions
-pou doctor --json
+pou doctor
 pou observe "Describe a symptom and consequence"
 ```
 
-Edit `pou.config.mjs` to select a profile or add project commands. Initialization also creates missing `AGENTS.md` and `.pou/friction.md`; it does not merge existing agent guidance. Each repo has its own configuration and friction log. The engine selects only the current directory's configuration.
-
-`init` intentionally initializes the selected directory even without Git, so check your location first. It never overwrites existing config, guidance, or logs. General discovery works outside configured projects; project operations cannot fall back to another repo.
+Each repo has its own configuration (`pou.config.mjs`) and friction log (`.pou/friction.md`), created during `pou init`. `AGENTS.md` with a `# pou` section is created, or appended if the file already exists. Existing files are otherwise left untouched. Edit `pou.config.mjs` to select a profile or add project commands. The engine selects only the current directory's configuration. Consult [the configuration docs](./docs/configuration.md) for more information.
 
 ## Development
 
@@ -68,7 +66,7 @@ npm run smoke
 npm test
 ```
 
-When changing or piloting the .NET profile, also run `npm run test:integration`. It requires a .NET SDK 8 or newer, the xUnit template, and access to restore its test dependencies using your configured NuGet sources.
+When changing the .NET profile, also run `npm run test:integration`. It requires a .NET SDK 8 or newer, the xUnit template, and access to restore its test dependencies using your configured NuGet sources.
 
 ## Maintenance
 

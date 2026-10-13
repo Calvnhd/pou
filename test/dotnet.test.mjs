@@ -84,18 +84,6 @@ test('failed, skipped, all-skipped, malformed, and multiple reports cannot pass'
   }
 });
 
-test('checks short-circuit build failure and validate required test selection first', async (t) => {
-  const { currentDirectory, params } = setup(t);
-  let calls = 0;
-  const result = await profile(params).verbs.checks(context(currentDirectory, async (_, commandArguments) => {
-    if (commandArguments[0] === '--version') return { ok: true, stdout: '9.0.318' };
-    calls += 1; return { ok: false, code: 1 };
-  }));
-  assert.equal(calls, 1);
-  assert.deepEqual(result.data.skipped, ['test']);
-  assert.equal(result.command, 'checks');
-});
-
 test('runtime-only or SDK selection failure is a prerequisite error', async (t) => {
   const { currentDirectory, params } = setup(t);
   await assert.rejects(profile(params).verbs.build(context(currentDirectory, async () => ({ ok: false, stdout: '', code: 145 }))),

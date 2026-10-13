@@ -22,7 +22,7 @@ test('real SDK proves passing/failing/zero-test and compile-failure fixtures', {
   assert.equal(restore.ok, true, restore.stdout + restore.stderr);
   config(currentDirectory, `export default {profile:"dotnet",params:${JSON.stringify({ buildTarget: project, testProject: project, testFramework: framework })}};`);
   writeFileSync(source, 'public class Evidence { [Xunit.Fact] public void Proof() { Xunit.Assert.True(true); } }');
-  const good = invoke(currentDirectory, ['checks'], { timeout: 120_000 });
+  const good = invoke(currentDirectory, ['test'], { timeout: 120_000 });
   assert.equal(good.status, 0, good.stdout);
   assert.equal(good.envelope.data.tests.passed, 1);
   writeFileSync(source, 'public class Evidence { [Xunit.Fact] public void Proof() { Xunit.Assert.True(false); } }');

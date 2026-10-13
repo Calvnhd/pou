@@ -5,15 +5,12 @@ description: Independent repo customization, command evidence, and trusted execu
 
 ## One engine, independent projects
 
-Install the engine once. Run it from each project's root. Configuration is loaded only from the current directory.
+Install the engine once globally on your machine. Run it from each project's root. Configuration is loaded only from the current directory.
 
-Use `pou.config.mjs`, which `pou init` creates in your project root. Edit that file to select a profile or add commands. It is the only supported configuration filename. The examples below use `export default` to provide the configuration pou loads.
+`pou init` creates missing `pou.config.mjs`, `AGENTS.md`, and `.pou/friction.md`. Use `pou profiles` to list the available profiles, and `pou init <profile>` (for example `pou init dotnet`) to start from that profile's config. Initialization preserves existing files, so `pou init <profile>` does not change a `pou.config.mjs` that already exists. If `AGENTS.md` already exists, `pou init` appends a `# pou` section to it once (if not already present), leaving the existing content untouched.
 
-`pou init` creates missing `pou.config.mjs`, `AGENTS.md`, and `.pou/friction.md`. `pou observe` appends to that project-local friction log.
+Edit `pou.config.mjs` to select a profile or add commands. The config tells `pou` which commands and readiness checks to use for this project.
 
-Initialization preserves existing files. If your repo already has agent guidance, add the pou workflow there yourself; initialization does not merge it.
-
-The config tells pou which commands and readiness checks to use for this project. Editing it does not run anything; pou reads it when you invoke a command.
 
 ## Start with the generated config
 
@@ -22,31 +19,26 @@ This is the file `pou init` creates:
 ```javascript
 export default {
   profile: 'base',
-  params: {},
   verbs: {},
   doctor: [],
   briefings: {},
 };
 ```
 
-`export default` means "this is the configuration pou should load." Empty `{}` and `[]` mean you have not added any entries yet.
+`export default` means "this is the configuration pou should load." Empty `{}` and `[]` mean you have not added any entries yet. Every key is optional.
 
-* `profile`: A built-in set of commands and readiness checks. `base` provides the basic pou workflow, with no build or test commands.
-* `params`: Settings for the selected profile. Leave this empty for `base`.
+* `profile`: A built-in set of commands and readiness checks. `base` provides the basic pou workflow. See [Profiles](#profiles).
 * `verbs`: Your project commands. An entry named `test` creates a `pou test` command.
-* `doctor`: Extra readiness checks to run with `pou doctor`, such as checking that a required tool is available.
+* `doctor`: Extra readiness checks to run with `pou doctor`.
 * `briefings`: Descriptions of your project commands, available through `pou help <command>` and `pou instructions <command>`.
-
-You can leave the generated config unchanged while trying `help`, `instructions`, `doctor`, and `observe`. It does not build or test your project yet.
 
 ## Add a project command
 
-For example, if your project already runs its tests with `npm test`, change `verbs` from `{}` to the entry shown below. Everything else stays the same:
+For example, if your project already runs its tests with `npm test`, change `verbs` to the entry shown below:
 
 ```javascript
 export default {
   profile: 'base',
-  params: {},
   verbs: {
     test: 'npm test',
   },
@@ -55,13 +47,30 @@ export default {
 };
 ```
 
-Now running `pou test` runs `npm test` from your project root and reports whether it succeeded. Replace `npm test` with your project's actual test command. Pou does not install or configure the underlying test tool.
+Running `pou test` now runs `npm test` from your project root and reports whether it succeeded. Note that pou does not install or configure the underlying test tool.
 
-Command names are your choice: `build: 'npm run build'` would add `pou build`. An array of command strings runs them in order and stops at the first failure. Add only commands you actually need.
+Command names are your choice: `build: 'npm run build'` would add `pou build`. An array of command strings runs them in order and stops at the first failure. 
 
-## Use pou with a .NET project
+To document a new command for `pou help` and `pou instructions`, add a matching entry under `briefings`; see [Briefings and overrides](#briefings-and-overrides).
 
-With the .NET SDK installed, select `dotnet` to add build/test commands alongside the basic pou commands:
+## Profiles
+
+A profile is a ready-made set of commands and readiness checks. Select one with `profile` in `pou.config.mjs`. Layers apply in order: `base`, then the selected profile, then your config. Your `doctor` checks add to the inherited ones. A verb with the same name as an inherited verb replaces it.
+
+The `params` key holds settings for the selected profile. Only profiles that take settings need it.
+
+| Profile  | Adds                                                | Settings (`params`) |
+|----------|-----------------------------------------------------|---------------------|
+| `base`   | Readiness checks for Node, config, and profile      | None                |
+| `dotnet` | `build`, `test`; SDK and target checks             | See below           |
+
+### base
+
+The default. It adds no project commands, only the `doctor` checks that confirm Node.js 18+, a present config, and the loaded profile. Add your own commands under `verbs`.
+
+### dotnet
+
+With the .NET SDK installed, select `dotnet` to add build/test commands alongside the base ones:
 
 ```javascript
 export default {
@@ -76,9 +85,19 @@ export default {
 
 Replace the paths and framework with your own. Paths are relative to your project root.
 
+| Param           | Required for     | Meaning                                                  |
+|-----------------|------------------|----------------------------------------------------------|
+| `buildTarget`   | build            | One `.csproj`, `.sln`, or `.slnx` to build               |
+| `testProject`   | test             | One test `.csproj`                                       |
+| `testFramework` | test             | One target framework, for example `net9.0`               |
+| `configuration` | Optional         | Build configuration; defaults to `Debug`                 |
+| `timeoutMs`     | Optional         | Positive integer time limit for each dotnet command      |
+
 * `pou build` runs `dotnet build` on `buildTarget`.
 * `pou test` runs `dotnet test` on `testProject` using `testFramework`, then checks the results.
-* `pou checks` builds, then tests; it stops if the build fails.
+* `pou doctor` also checks the .NET SDK and that `buildTarget` resolves.
+
+To customize, change `params`, add your own commands or `doctor` checks, or replace a profile command by defining a verb with the same name. A replacement needs its own `briefings` entry, or its briefing is reported unavailable.
 
 
 ## Write a command in JavaScript
@@ -103,9 +122,37 @@ export default {
 
 ## Briefings and overrides
 
-Add `briefings.<verb>` with nonempty strings for `summary`, `purpose`, `inputs`, `prerequisites`, `sideEffects`, `outputs`, `recovery`, and `proofBoundary`. Read it with `pou instructions <verb>`.
+Add `briefings.<verb>` to describe a command. A briefing is optional. If you write one, every field below must be a nonempty string otherwise the config will be rejected. A briefing with no matching verb is rejected. Replacing a verb without replacement metadata invalidates its inherited briefing. 
 
-Replacing a verb without replacement metadata invalidates its inherited briefing. It remains runnable, but instructions report the briefing unavailable. Do not inherit a profile's proof claims for an unrelated replacement command.
+Read a briefing with `pou instructions <verb>`.
+
+| Field           | What to put in it                                                  |
+|-----------------|--------------------------------------------------------------------|
+| `summary`       | One line shown in `pou help`                                       |
+| `purpose`       | What the command does                                              |
+| `inputs`        | Arguments and config it reads, such as `[--json]` or a `params` key |
+| `prerequisites` | Tools or setup that must exist before it runs                      |
+| `sideEffects`   | What it changes: files written, packages restored, processes run   |
+| `outputs`       | What it reports back                                               |
+| `recovery`      | What to do when it fails                                           |
+| `proofBoundary` | What a success does and does not prove                             |
+
+For example, a briefing for `test: 'npm test'`:
+
+```javascript
+briefings: {
+  test: {
+    summary: 'Run the unit tests',
+    purpose: 'Run the project unit tests with npm.',
+    inputs: 'None.',
+    prerequisites: 'Node.js and installed npm dependencies.',
+    sideEffects: 'None beyond whatever the tests write.',
+    outputs: 'Pass or fail from the npm exit code.',
+    recovery: 'Fix the failing tests, then rerun.',
+    proofBoundary: 'Unit tests only; not integration or deployment.',
+  },
+},
+```
 
 ## Results and trust boundary
 
@@ -120,13 +167,8 @@ Non-`ok` results include `error.code`, `error.message`, and `next_action`. Inspe
 
 Project modules, shell scripts, readiness checks, and function commands are trusted executable code, not sandboxed. They must not write directly to standard output, block the event loop, or create unmanaged child processes. Use `context.log` and the process helpers provided by pou. Helper time limits cannot forcefully terminate arbitrary synchronous JavaScript. Never treat this command-line tool as a permission boundary for deployment or other mutations.
 
-## Cold-session workflow
+## Agent guidance and friction
 
-1. Run `pou help` and `pou instructions`.
-2. Read the relevant command briefing and run `pou doctor`.
-3. Map the requested change to the smallest adequate check.
-4. Run it and inspect measured scope and limitations.
-5. Record symptoms and consequences with `pou observe`.
-6. Review recurring friction and offer a tested improvement for human acceptance.
+The recommended working order for humans and agents (discover, doctor, smallest check, observe, review) is in the `AGENTS.md` that `pou init` creates or extends, and in `pou instructions`.
 
-`init` never overwrites existing config, guidance, or logs. If your repo already has agent guidance, add the discovery/readiness workflow there yourself. Guidance is not an installed automatic hook. Friction capture is not proof that a lesson was implemented.
+`init` never overwrites existing config or logs, and only appends a `# pou` section to an existing `AGENTS.md`. Guidance is not an installed automatic hook. Friction capture is not proof that a lesson was implemented.
